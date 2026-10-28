@@ -11,9 +11,5 @@ __pycache__
 .hypothesis
 .coverage
 htmlcov
-tests
-evals
-fixtures
-docs
 *.md
 Makefile
