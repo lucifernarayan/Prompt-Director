@@ -1,10 +1,199 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f3ef">
   <title>Prompt Director</title>
+  <style>
+    :root{color-scheme:light;--ink:#202522;--muted:#737c75;--line:#dfe3dc;--paper:#fbfaf7;--canvas:#f2f1ec;--green:#276b53;--green-dark:#1c503e;--green-soft:#e6f1eb;--amber:#a36427;--red:#a4473a;--shadow:0 10px 34px #2631270c;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}*{box-sizing:border-box}body{margin:0;background:var(--canvas);color:var(--ink);min-height:100vh}.shell{max-width:1260px;margin:auto;padding:28px 34px 48px}.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:30px}.brand{display:flex;align-items:center;gap:12px;font-size:15px;font-weight:700;letter-spacing:-.02em}.mark{width:34px;height:34px;border-radius:11px;background:var(--green);display:grid;place-items:center;color:white}.mark svg{width:19px}.top-note{font-size:12px;color:var(--muted)}.layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:20px;align-items:start}.main{min-width:0}.intro{margin:0 0 22px}.eyebrow{text-transform:uppercase;letter-spacing:.13em;font-size:10px;font-weight:800;color:var(--green);margin:0 0 8px}.intro h1{font-size:32px;line-height:1.15;letter-spacing:-.045em;margin:0 0 8px;font-weight:650}.intro p{color:var(--muted);font-size:14px;margin:0}.panel,.side-card{background:var(--paper);border:1px solid var(--line);border-radius:15px;box-shadow:var(--shadow)}.panel{padding:22px}.fields{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin-bottom:18px}.field label,.section-head label{display:block;font-size:11px;font-weight:700;color:#4d5750;margin:0 0 7px}.field input,.field textarea{width:100%;border:1px solid var(--line);background:#fff;border-radius:9px;padding:11px 12px;color:var(--ink);font:inherit;font-size:13px;outline:none;transition:border .15s,box-shadow .15s}.field input:focus,.field textarea:focus{border-color:#74a58e;box-shadow:0 0 0 3px #276b5316}.field textarea{min-height:245px;resize:vertical;line-height:1.7;font:12px/1.75 ui-monospace,SFMono-Regular,Consolas,monospace;tab-size:2}.idea-field{margin-bottom:18px}.section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}.section-head small,.hint{font-size:11px;color:var(--muted)}.editor-wrap{position:relative}.editor-wrap textarea{padding-bottom:28px}.editor-count{position:absolute;right:12px;bottom:10px;font-size:10px;color:#909890;pointer-events:none}.actions{display:flex;align-items:center;gap:10px;margin-top:15px}.button{border:0;border-radius:9px;padding:11px 15px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;transition:transform .12s,background .12s,opacity .12s}.button:active{transform:translateY(1px)}.primary{background:var(--green);color:white;box-shadow:0 3px 8px #276b5322}.primary:hover{background:var(--green-dark)}.secondary{background:#fff;border:1px solid var(--line);color:#414b44}.button:disabled{opacity:.5;cursor:not-allowed}.status{font-size:11px;color:var(--muted);margin-left:auto;display:flex;align-items:center;gap:7px}.dot{width:7px;height:7px;background:#aab2aa;border-radius:50%}.dot.live{background:#3a9a6e;box-shadow:0 0 0 3px #3a9a6e20}.dot.bad{background:var(--red)}.side-card{padding:19px 18px}.side-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}.side-title h2{font-size:13px;letter-spacing:-.01em;margin:0}.count{font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums}.side-desc{font-size:11px;color:var(--muted);line-height:1.5;margin:7px 0 17px}.axis-list{list-style:none;margin:0;padding:0;display:grid;gap:4px}.axis{display:flex;align-items:center;gap:10px;padding:9px 8px;border-radius:8px;color:#727a73;font-size:12px;transition:background .2s,color .2s}.axis.done{color:var(--green-dark);background:var(--green-soft);font-weight:650}.axis-check{width:17px;height:17px;border:1px solid #cbd2c9;border-radius:50%;display:grid;place-items:center;font-size:10px;flex:none}.axis.done .axis-check{border-color:var(--green);background:var(--green);color:white}.result-panel{margin-top:18px;display:none}.result-panel.visible{display:block}.result-top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding-bottom:15px;border-bottom:1px solid var(--line)}.result-top h2{font-size:15px;margin:0 0 4px;letter-spacing:-.02em}.result-top p{font-size:11px;color:var(--muted);margin:0}.result-actions{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}.small-btn{border:1px solid var(--line);background:white;color:#515b53;padding:7px 10px;border-radius:7px;font-family:inherit;font-size:10px;font-weight:600;cursor:pointer}.small-btn:hover{border-color:#aebbb0}.small-btn.selected{border-color:#75a58e;background:var(--green-soft);color:var(--green-dark)}.diff{font:12px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;margin-top:14px;overflow:auto;max-height:420px}.diff-line{display:grid;grid-template-columns:24px 1fr;white-space:pre-wrap;overflow-wrap:anywhere;padding:2px 8px;border-radius:4px}.diff-line .sign{color:#929a92;user-select:none}.diff-line.add{background:#e8f4ed;color:#20573f}.diff-line.add .sign{color:#36815e}.diff-line.remove{background:#faece9;color:#85433d}.diff-line.remove .sign{color:#b14e41}.diff-line.same{color:#707a72}.empty-diff{padding:24px;color:var(--muted);text-align:center;font-family:inherit;font-size:12px}.footer-note{font-size:10px;color:#8a928b;line-height:1.55;margin-top:12px}.error-box{display:none;border:1px solid #e8c5be;background:#fcf0ed;color:#87473e;padding:11px 12px;border-radius:8px;font-size:12px;line-height:1.5;margin-top:14px}.error-box.visible{display:block}.toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,12px);background:#222a25;color:white;padding:10px 14px;border-radius:8px;font-size:11px;opacity:0;transition:.2s;pointer-events:none}.toast.show{opacity:1;transform:translate(-50%,0)}@media(max-width:850px){.layout{grid-template-columns:1fr}.side-card{grid-row:2}.axis-list{grid-template-columns:repeat(2,1fr)}.intro h1{font-size:28px}}@media(max-width:560px){.shell{padding:18px 14px 30px}.top-note{display:none}.panel{padding:16px}.fields{grid-template-columns:1fr}.intro h1{font-size:26px}.actions{flex-wrap:wrap}.status{width:100%;margin:5px 0 0}.result-top{display:block}.result-actions{justify-content:flex-start;margin-top:12px}.axis-list{grid-template-columns:1fr 1fr}}
+  </style>
 </head>
 <body>
-  Prompt Director
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand"><span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 17.5 9.2 6l2.8 7 2.1-4 5.9 8.5H4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="17.6" cy="5.6" r="1.5" fill="currentColor"/></svg></span>Prompt Director</div>
+      <div class="top-note">Project prompt workspace <span aria-hidden="true">·</span> Local demo</div>
+    </header>
+    <main class="layout">
+      <section class="main" aria-label="Prompt editor">
+        <div class="intro"><p class="eyebrow">Creative brief → structured prompt</p><h1>Shape the scene.</h1><p>Describe what you want to make, then refine the eight prompt axes.</p></div>
+        <div class="panel">
+          <div class="fields">
+            <div class="field"><label for="userId">User ID</label><input id="userId" value="user_a" autocomplete="off"></div>
+            <div class="field"><label for="projectId">Project ID</label><input id="projectId" value="proj_a" autocomplete="off"></div>
+          </div>
+          <div class="field idea-field"><label for="idea">What should happen?</label><input id="idea" placeholder="A courier crosses a rain-lit city at dawn" autocomplete="off"></div>
+          <div class="field">
+            <div class="section-head"><label for="editor">Prompt DSL editor</label><small>Existing values are preserved when filled</small></div>
+            <div class="editor-wrap"><textarea id="editor" spellcheck="false" placeholder="subject: ...&#10;emotion: ...&#10;optics: ...&#10;motion: ...&#10;lighting: ...&#10;style: ...&#10;audio: ...&#10;continuity: ..."></textarea><span class="editor-count" id="lineCount">0 lines</span></div>
+          </div>
+          <div class="actions"><button class="button primary" id="assistBtn" type="button">✦ &nbsp;Assist</button><button class="button secondary" id="reconnectBtn" type="button" hidden>Reconnect stream</button><span class="status" role="status" aria-live="polite"><i class="dot" id="statusDot"></i><span id="statusText">Ready for a brief</span></span></div>
+          <div class="error-box" id="errorBox" role="alert"></div>
+        </div>
+        <section class="panel result-panel" id="resultPanel" aria-label="Prompt comparison">
+          <div class="result-top"><div><h2>Prompt comparison</h2><p id="resultMeta">Original and suggested lines</p></div><div class="result-actions"><button class="small-btn" id="acceptBtn" type="button">Accept suggestion</button><button class="small-btn" id="rejectBtn" type="button">Reject</button></div></div>
+          <div class="diff" id="diff" aria-live="polite"></div>
+          <p class="footer-note">Green lines are added or changed; red lines are from the original. Accept/reject feedback is saved only in this browser.</p>
+        </section>
+      </section>
+      <aside class="side-card" aria-label="Prompt axis checklist">
+        <div class="side-title"><h2>Prompt axes</h2><span class="count" id="axisCount">0 / 8</span></div>
+        <p class="side-desc">Axes arrive as the job completes. Reconnects resume after the last received event.</p>
+        <ul class="axis-list" id="axisList"></ul>
+      </aside>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
+<script>
+(() => {
+  const AXES = ["subject", "emotion", "optics", "motion", "lighting", "style", "audio", "continuity"];
+  const els = Object.fromEntries(["userId", "projectId", "idea", "editor", "lineCount", "axisList", "axisCount", "assistBtn", "reconnectBtn", "statusDot", "statusText", "errorBox", "resultPanel", "resultMeta", "diff", "acceptBtn", "rejectBtn", "toast"].map(id => [id, document.getElementById(id)]));
+  const axisValues = new Map();
+  let originalDsl = "";
+  let currentJobId = null;
+  let lastEventId = "";
+  let streamController = null;
+  let activeStream = false;
+  let terminal = false;
+
+  function buildAxes() {
+    els.axisList.replaceChildren();
+    AXES.forEach(axis => {
+      const li = document.createElement("li"); li.className = "axis"; li.id = `axis-${axis}`;
+      const check = document.createElement("span"); check.className = "axis-check"; check.setAttribute("aria-hidden", "true");
+      const label = document.createElement("span"); label.textContent = axis;
+      li.append(check, label); els.axisList.append(li);
+    });
+    updateAxisCount();
+  }
+  function updateAxisCount() { const count = axisValues.size; els.axisCount.textContent = `${count} / 8`; }
+  function markAxis(axis, value) {
+    if (!AXES.includes(axis)) return;
+    axisValues.set(axis, String(value ?? ""));
+    const row = document.getElementById(`axis-${axis}`); row.classList.add("done"); row.querySelector(".axis-check").textContent = "✓";
+    updateAxisCount(); renderDiff();
+  }
+  function suggestionText() { return AXES.filter(axis => axisValues.has(axis)).map(axis => `${axis}: ${axisValues.get(axis)}`).join("\n"); }
+  function updateLineCount() { const n = els.editor.value ? els.editor.value.split(/\r\n|\r|\n/).length : 0; els.lineCount.textContent = `${n} ${n === 1 ? "line" : "lines"}`; }
+  function setStatus(text, state = "") { els.statusText.textContent = text; els.statusDot.className = `dot${state ? ` ${state}` : ""}`; }
+  function showError(message) { els.errorBox.textContent = message; els.errorBox.classList.add("visible"); }
+  function clearError() { els.errorBox.textContent = ""; els.errorBox.classList.remove("visible"); }
+  function toast(message) { els.toast.textContent = message; els.toast.classList.add("show"); setTimeout(() => els.toast.classList.remove("show"), 2300); }
+
+  // A compact LCS line diff; ties prefer showing an original line as removed then the new line as added.
+  function lineDiff(before, after) {
+    const a = before ? before.split(/\r\n|\r|\n/) : [];
+    const b = after ? after.split(/\r\n|\r|\n/) : [];
+    const rows = Array.from({length: a.length + 1}, () => new Uint16Array(b.length + 1));
+    for (let i = a.length - 1; i >= 0; i--) for (let j = b.length - 1; j >= 0; j--) rows[i][j] = a[i] === b[j] ? rows[i + 1][j + 1] + 1 : Math.max(rows[i + 1][j], rows[i][j + 1]);
+    const out = []; let i = 0, j = 0;
+    while (i < a.length || j < b.length) {
+      if (i < a.length && j < b.length && a[i] === b[j]) { out.push(["same", a[i++]]); j++; }
+      else if (i < a.length && (j >= b.length || rows[i + 1][j] >= rows[i][j + 1])) out.push(["remove", a[i++]]);
+      else out.push(["add", b[j++]]);
+    }
+    return out;
+  }
+  function renderDiff() {
+    const suggestion = suggestionText();
+    els.resultPanel.classList.toggle("visible", axisValues.size > 0);
+    els.resultMeta.textContent = `${axisValues.size} suggested ${axisValues.size === 1 ? "axis" : "axes"} · line-by-line comparison`;
+    els.diff.replaceChildren();
+    if (!suggestion) { const empty = document.createElement("div"); empty.className = "empty-diff"; empty.textContent = "Suggestions will appear here as axes arrive."; els.diff.append(empty); return; }
+    lineDiff(originalDsl, suggestion).forEach(([kind, text]) => {
+      const line = document.createElement("div"); line.className = `diff-line ${kind}`;
+      const sign = document.createElement("span"); sign.className = "sign"; sign.textContent = kind === "add" ? "+" : kind === "remove" ? "−" : " ";
+      const content = document.createElement("span"); content.textContent = text || " ";
+      line.append(sign, content); els.diff.append(line);
+    });
+  }
+
+  function parseEventBlock(block) {
+    let id = "", type = "message"; const data = [];
+    for (const line of block.split("\n")) {
+      if (!line || line.startsWith(":")) continue;
+      const colon = line.indexOf(":"); const field = colon < 0 ? line : line.slice(0, colon); let value = colon < 0 ? "" : line.slice(colon + 1); if (value.startsWith(" ")) value = value.slice(1);
+      if (field === "id") id = value;
+      else if (field === "event") type = value;
+      else if (field === "data") data.push(value);
+    }
+    if (id) lastEventId = id;
+    if (!data.length) return;
+    let payload; try { payload = JSON.parse(data.join("\n")); } catch { return; }
+    if (type === "axis") markAxis(payload.axis, payload.value);
+    else if (type === "stage") setStatus(`Working · ${payload.node || "stage"}` , "live");
+    else if (type === "done") {
+      terminal = true; activeStream = false; els.reconnectBtn.hidden = true; els.assistBtn.disabled = false;
+      if (payload.status === "delivered") setStatus("Suggestion ready", "live");
+      else { setStatus(`Job ${payload.status || "finished"}`, "bad"); if (payload.reason_codes?.length) showError(`Request blocked: ${payload.reason_codes.join(", ")}`); }
+    }
+  }
+  const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+  async function readStream(jobId, generation) {
+    let delay = 500;
+    while (activeStream && !terminal && generation === streamGeneration) {
+      streamController = new AbortController();
+      const headers = {"X-User-Id": els.userId.value.trim()};
+      if (lastEventId) headers["Last-Event-ID"] = lastEventId;
+      try {
+        setStatus(lastEventId ? "Reconnecting from last event…" : "Connecting to job…", "live");
+        const response = await fetch(`/v1/assist/${encodeURIComponent(jobId)}/events`, {method: "GET", headers, signal: streamController.signal, cache: "no-store"});
+        if (!response.ok) { const body = await response.json().catch(() => ({})); throw new Error(body.detail || `Event stream returned ${response.status}`); }
+        if (!response.body) throw new Error("ReadableStream is not available in this browser.");
+        setStatus("Receiving prompt axes…", "live"); delay = 500;
+        const reader = response.body.getReader(); const decoder = new TextDecoder(); let buffer = "";
+        while (activeStream && !terminal && generation === streamGeneration) {
+          const {value, done} = await reader.read();
+          if (done) { buffer += decoder.decode(); break; }
+          buffer += decoder.decode(value, {stream: true}).replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+          let boundary;
+          while ((boundary = buffer.indexOf("\n\n")) >= 0) { const block = buffer.slice(0, boundary); buffer = buffer.slice(boundary + 2); parseEventBlock(block); if (terminal) break; }
+        }
+        if (terminal || !activeStream || generation !== streamGeneration) return;
+        setStatus("Stream ended; reconnecting…", "live");
+      } catch (error) {
+        if (!activeStream || generation !== streamGeneration) return;
+        if (error.name !== "AbortError" && /returned \d+|ReadableStream/.test(error.message)) { showError(error.message); setStatus("Stream unavailable", "bad"); activeStream = false; els.assistBtn.disabled = false; els.reconnectBtn.hidden = false; return; }
+        if (error.name !== "AbortError") setStatus("Connection interrupted; retrying…", "live");
+      }
+      await wait(delay); delay = Math.min(delay * 1.7, 5000);
+    }
+  }
+  let streamGeneration = 0;
+
+  async function startJob() {
+    clearError(); axisValues.clear(); buildAxes(); terminal = false; lastEventId = ""; originalDsl = els.editor.value; currentJobId = null;
+    els.diff.replaceChildren(); els.resultPanel.classList.remove("visible"); els.assistBtn.disabled = true; els.reconnectBtn.hidden = true;
+    const userId = els.userId.value.trim(), projectId = els.projectId.value.trim(), idea = els.idea.value.trim();
+    if (!userId || !projectId || !idea) { showError("Enter a user ID, project ID, and idea to start."); setStatus("Missing required fields", "bad"); els.assistBtn.disabled = false; return; }
+    const body = {project_id: projectId, idea}; if (originalDsl.trim()) body.current_dsl = originalDsl;
+    try {
+      setStatus("Creating assist job…", "live");
+      const response = await fetch("/v1/assist", {method: "POST", headers: {"Content-Type": "application/json", "X-User-Id": userId, "Idempotency-Key": crypto.randomUUID()}, body: JSON.stringify(body)});
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.detail || `Request returned ${response.status}`);
+      if (!result.id) throw new Error("The API response did not include a job ID.");
+      currentJobId = result.id; activeStream = true; streamGeneration++;
+      await readStream(currentJobId, streamGeneration);
+    } catch (error) { showError(error.message || "Unable to create the assist job."); setStatus("Request failed", "bad"); els.assistBtn.disabled = false; }
+  }
+  function reconnect() { if (!currentJobId || terminal) return; clearError(); activeStream = false; if (streamController) streamController.abort(); streamGeneration++; activeStream = true; els.assistBtn.disabled = true; els.reconnectBtn.hidden = true; readStream(currentJobId, streamGeneration); }
+  function saveFeedback(decision) {
+    // There is no feedback API endpoint; accept/reject decisions are stored in localStorage only.
+    const record = {decision, job_id: currentJobId, project_id: els.projectId.value.trim(), at: new Date().toISOString(), suggestion: suggestionText()};
+    try { const key = "prompt-director-feedback"; const list = JSON.parse(localStorage.getItem(key) || "[]"); list.push(record); localStorage.setItem(key, JSON.stringify(list.slice(-50))); toast(`Saved ${decision} locally`); }
+    catch { toast("Could not save feedback in this browser"); }
+    document.querySelectorAll(".small-btn").forEach(button => button.classList.remove("selected")); (decision === "accepted" ? els.acceptBtn : els.rejectBtn).classList.add("selected");
+  }
+  els.assistBtn.addEventListener("click", startJob);
+  els.reconnectBtn.addEventListener("click", reconnect);
+  els.acceptBtn.addEventListener("click", () => saveFeedback("accepted"));
+  els.rejectBtn.addEventListener("click", () => saveFeedback("rejected"));
+  els.editor.addEventListener("input", updateLineCount);
+  buildAxes(); updateLineCount();
+})();
+</script>
 </body>
 </html>
