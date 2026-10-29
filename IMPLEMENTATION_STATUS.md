@@ -50,6 +50,15 @@
   - Demonstrated two intentional regression failures: removed `call_key` reuse check (caught by `test_call_key_reuse_skips_provider_call`) and bypassed unique ledger constraint in `settle()` (caught by `test_settle_delivered_vs_released_and_no_double_charge`), both restored and verified.
   - Tests run: `tests/test_cascade.py`, `tests/test_cost_cap.py`, `tests/test_billing.py`, `tests/test_resume_unit.py`, `tests/test_schema.py` (23 passed in 10.06s).
 
+- **Phase 6b — Worker loop, leases, fairness, and killed-worker test (T7)**:
+  - Implemented `app/worker/claim.py` (`claim_job` with `pg_advisory_xact_lock` and `FOR UPDATE SKIP LOCKED`, `heartbeat`, `release_lease`).
+  - Implemented `app/worker/main.py` (worker loop with background heartbeat thread, JSON logging per claim/node commit/provider call, graceful SIGTERM shutdown releasing lease, pause_after chaos hook).
+  - Implemented `app/worker/pool.py` with process-wide bounded semaphore around model provider calls (`MODEL_POOL_SIZE`, default 4).
+  - Implemented `app/llm/chaos_cli.py` and `app/tools/` (`submit.py`, `inspect.py`).
+  - Implemented `scripts/t7.ps1` PowerShell test verifying T7 fault tolerance with killed worker.
+  - Demonstrated two intentional regression failures: removed lease_owner guard from node commit (caught by `test_zombie_worker_raises_lease_lost_and_writes_nothing`) and removed running-count ordering from claim query (caught by `test_fairness_ordering_and_max_two_leases_per_user`), both restored and verified.
+  - Tests run: `tests/test_worker.py` (8 passed in 12.93s), full suite `tests/` (84 passed in 47.50s), `scripts/t7.ps1` (T7 PASS).
+
 ## Failing / known issues
 - None.
 
@@ -60,9 +69,10 @@
 - `taint_check` excludes standard grammatical stopwords to eliminate false positives on clean responses.
 - `hallucination_rate` treats continuity `"none"` as non-hallucinated.
 - `jobs.flags` stores `{"body": body}` to preserve intake request payload without schema changes.
+- In `claim_job`, fairness active lease count counts unexpired leases where `lease_expires_at > NOW()` and status is non-terminal.
 
 ## Cut or deferred
 - None.
 
 ## Next step
-- Phase 6b: Worker loop, lease management, concurrency control, and crash recovery (`app/worker/`).
+- Phase 7: Caching (exact match and semantic pgvector cache), inflight single-flight request coalescing.

@@ -36,3 +36,20 @@ def set(conn: psycopg.Connection, name: str, value: str) -> None:
             """,
             (name, str(value)),
         )
+
+
+def get(conn: psycopg.Connection, name: str) -> str | None:
+    """Get a single chaos switch value by name."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT value FROM chaos WHERE name = %s;", (name,))
+        row = cur.fetchone()
+        if row:
+            return row[0]
+        return CHAOS_DEFAULTS.get(name)
+
+
+def delete(conn: psycopg.Connection, name: str) -> None:
+    """Delete a single chaos switch from the chaos table."""
+    with conn.cursor() as cur:
+        cur.execute("DELETE FROM chaos WHERE name = %s;", (name,))
+

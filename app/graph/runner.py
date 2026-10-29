@@ -19,9 +19,12 @@ def run_job(
     job_id: str,
     worker_id: str,
     after_node_hook: Callable[[str], None] | None = None,
+    heartbeat_lost: Callable[[], bool] | None = None,
 ) -> None:
     """Execute graph runner for a single job with transactional node checkpoints and lease fencing."""
     while True:
+        if heartbeat_lost and heartbeat_lost():
+            raise LeaseLost(f"Heartbeat lost on job '{job_id}'")
         with conn_factory() as conn:
             # 1. Read job details and check lease / terminal status
             with conn.cursor() as cur:
@@ -43,13 +46,13 @@ def run_job(
                     quote_micro, cost_cap_micro, hold_micro, charged_micro, flags, result
                 ) = job_row
 
-                # Terminal status is a no-op
-                if status in ("delivered", "failed", "cancelled", "blocked"):
-                    return
-
                 # Check lease ownership
                 if lease_owner != worker_id:
                     raise LeaseLost(f"Worker '{worker_id}' is not the lease owner (current: '{lease_owner}')")
+
+                # Terminal status is a no-op
+                if status in ("delivered", "failed", "cancelled", "blocked"):
+                    return
 
                 # Check cancellation
                 if cancel_requested:
@@ -116,6 +119,8 @@ def run_job(
             duration_ms = max(1, int((time.perf_counter() - t0) * 1000))
 
             # 4. Commit ONE transaction: attempts + checkpoint + stage event + fenced lease update
+            if heartbeat_lost and heartbeat_lost():
+                raise LeaseLost(f"Heartbeat lost on job '{job_id}'")
             with conn.transaction():
                 with conn.cursor() as cur:
                     # Insert LLM attempts

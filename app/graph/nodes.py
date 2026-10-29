@@ -1,5 +1,6 @@
 import hashlib
 import json
+import sys
 from typing import Any
 
 from app.dsl import parse, print_dsl, validate
@@ -11,6 +12,7 @@ from app.memory.defense import build_request, enforce_locked, quarantine, taint_
 from app.memory.grounding import ground, has_ungrounded
 from app.memory.store import retrieve as memory_retrieve
 from app.pricing import cost_of_attempt, worst_case_cost
+from app.worker.pool import get_model_semaphore
 
 
 def _get_seed(job_id: str) -> int:
@@ -143,15 +145,25 @@ def _execute_call_with_retries(
         cancel_fn = lambda: _check_cancel(conn_read, job_id)
 
         try:
-            res = mock_call(
-                model=model,
-                request=req_payload,
-                seed=seed,
-                attempt=model_attempt_idx,
-                chaos=chaos_map,
-                timeout_s=10.0,
-                should_cancel=cancel_fn,
-            )
+            with get_model_semaphore():
+                payload = {
+                    "event": "provider_call",
+                    "job_id": job_id,
+                    "call_key": call_key,
+                    "worker_id": job.get("lease_owner") or "",
+                }
+                sys.stdout.write(json.dumps(payload) + "\n")
+                sys.stdout.flush()
+
+                res = mock_call(
+                    model=model,
+                    request=req_payload,
+                    seed=seed,
+                    attempt=model_attempt_idx,
+                    chaos=chaos_map,
+                    timeout_s=10.0,
+                    should_cancel=cancel_fn,
+                )
             outcome = res.get("outcome", "valid")
             tokens_in = res.get("tokens_in", 0)
             tokens_out = res.get("tokens_out", 0)
