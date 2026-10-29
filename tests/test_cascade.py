@@ -10,16 +10,6 @@ from app.llm import chaos
 from app.pricing import FULL_QUOTE, COST_CAP
 
 
-@pytest.fixture(autouse=True)
-def clean_db():
-    run_migrations()
-    load_fixtures()
-    with psycopg.connect(settings.DATABASE_URL, autocommit=True) as conn:
-        with conn.cursor() as cur:
-            cur.execute("TRUNCATE jobs, checkpoints, llm_calls, job_events, account_ledger CASCADE;")
-    load_fixtures()
-
-
 def conn_factory():
     return psycopg.connect(settings.DATABASE_URL, autocommit=False)
 

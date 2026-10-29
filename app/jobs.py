@@ -167,8 +167,8 @@ def settle(conn: psycopg.Connection, job_id: str, delivered: bool) -> None:
         existing_phases = [r[0] for r in cur.fetchall()]
 
         if delivered:
-            if "settle" in existing_phases:
-                return  # Already settled
+            if "settle" in existing_phases or "release" in existing_phases:
+                return  # Already settled or released
             try:
                 cur.execute(
                     """
@@ -179,6 +179,8 @@ def settle(conn: psycopg.Connection, job_id: str, delivered: bool) -> None:
                     (job_id, quote_micro),
                 )
             except UniqueViolation:
+                return
+            if cur.rowcount != 1:
                 return
 
             cur.execute(
@@ -202,6 +204,8 @@ def settle(conn: psycopg.Connection, job_id: str, delivered: bool) -> None:
                     (job_id, hold_micro),
                 )
             except UniqueViolation:
+                return
+            if cur.rowcount != 1:
                 return
 
             # Refund the held amount to user account

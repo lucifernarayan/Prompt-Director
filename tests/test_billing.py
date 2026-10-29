@@ -1,20 +1,8 @@
 import pytest
 import psycopg
 from app.config import settings
-from app.db.migrate import run_migrations
-from app.fixtures_loader import load_fixtures
 from app.jobs import Conflict, InsufficientCredit, create_job, settle
 from app.pricing import AXIS_EDIT_QUOTE, FULL_QUOTE
-
-
-@pytest.fixture(autouse=True)
-def clean_db():
-    run_migrations()
-    load_fixtures()
-    with psycopg.connect(settings.DATABASE_URL, autocommit=True) as conn:
-        with conn.cursor() as cur:
-            cur.execute("TRUNCATE jobs, checkpoints, llm_calls, job_events, account_ledger CASCADE;")
-    load_fixtures()
 
 
 def test_create_job_quote_selection():
@@ -183,3 +171,54 @@ def test_settle_delivered_vs_released_and_no_double_charge():
             # Balance should be refunded by hold_micro
             cur.execute("SELECT balance_micro FROM accounts WHERE user_id = 'user_a';")
             assert cur.fetchone()[0] == bal_before_release + FULL_QUOTE
+
+
+def test_settle_second_call_does_not_double_refund():
+    """Verify that a second settle() call does NOT refund again."""
+    with psycopg.connect(settings.DATABASE_URL, autocommit=True) as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT balance_micro FROM accounts WHERE user_id = 'user_a';")
+            initial_bal = cur.fetchone()[0]
+
+        job = create_job(
+            conn,
+            user_id="user_a",
+            project_id="proj_a",
+            idempotency_key="key-double-refund-check",
+            body={"idea": "detective in rain"},
+        )
+        with conn.cursor() as cur:
+            cur.execute("SELECT balance_micro FROM accounts WHERE user_id = 'user_a';")
+            bal_after_hold = cur.fetchone()[0]
+        assert bal_after_hold == initial_bal - FULL_QUOTE
+
+        # First settle (release / failure)
+        with conn.transaction():
+            settle(conn, job["id"], delivered=False)
+
+        with conn.cursor() as cur:
+            cur.execute("SELECT balance_micro FROM accounts WHERE user_id = 'user_a';")
+            bal_after_first_settle = cur.fetchone()[0]
+        assert bal_after_first_settle == initial_bal
+
+        # Second settle (release again) must be a no-op and NOT refund again
+        with conn.transaction():
+            settle(conn, job["id"], delivered=False)
+
+        with conn.cursor() as cur:
+            cur.execute("SELECT balance_micro FROM accounts WHERE user_id = 'user_a';")
+            bal_after_second_settle = cur.fetchone()[0]
+        assert bal_after_second_settle == initial_bal
+
+        # Also verify deliver after release does nothing
+        with conn.transaction():
+            settle(conn, job["id"], delivered=True)
+
+        with conn.cursor() as cur:
+            cur.execute("SELECT balance_micro FROM accounts WHERE user_id = 'user_a';")
+            assert cur.fetchone()[0] == initial_bal
+            cur.execute("SELECT status, charged_micro FROM jobs WHERE id = %s;", (job["id"],))
+            status, charged = cur.fetchone()
+            assert status != "delivered"
+            assert charged == 0
+
