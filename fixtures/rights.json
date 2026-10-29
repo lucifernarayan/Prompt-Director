@@ -1,0 +1,30 @@
+{
+  "real_persons": [
+    "Elon Musk",
+    "Taylor Swift",
+    "Tom Cruise",
+    "Donald Trump"
+  ],
+  "living_artists": [
+    "Banksy",
+    "David Hockney",
+    "Damien Hirst",
+    "Yayoi Kusama"
+  ],
+  "trademarks": [
+    "Coca-Cola",
+    "PlayStation",
+    "Nike Swoosh",
+    "Walt Disney"
+  ],
+  "allowed_near_misses": [
+    "Taylor",
+    "Swift River",
+    "Banks",
+    "Cruise Ship",
+    "Elon College",
+    "David",
+    "Donald",
+    "Hockney Field"
+  ]
+}

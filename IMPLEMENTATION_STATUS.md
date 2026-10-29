@@ -10,26 +10,29 @@
 - **Phase 1 — Schema, pricing, fixtures loader**:
   - Implemented `db/migrations/002_core.sql`, `app/pricing.py`, `app/fixtures_loader.py`.
   - Phase 1 commit: `50f8627`.
-  - Tests run: `tests/test_schema.py` (7 passed in 2.10s).
+  - Tests run: `tests/test_schema.py` (7 passed).
 - **Phase 2 — DSL parser, printer, validator**:
-  - Implemented single linear pass parser in `app/dsl/parser.py` using `str` methods without backtracking regex or `splitlines()`.
-  - Implemented semantic validator in `app/dsl/validator.py` checking 8 non-empty axes under 200 characters.
-  - Implemented canonical printer in `app/dsl/printer.py` in fixed axis order with comments dropped.
-  - Exported simple public API in `app/dsl/__init__.py`: `parse(text) -> (axes, errors)`, `validate(axes) -> errors`, `print_dsl(axes) -> str`.
-  - Added property tests (`tests/test_dsl.py`) with Hypothesis and hostile input tests (`tests/test_dsl_hostile.py`).
-  - Tested intentional failure mode: demonstrated that switching to `str.splitlines()` breaks on U+2028 before restoring correct normalization.
-  - Tests run: `docker compose run --rm api python -m pytest tests/` -> 19 passed in 5.43s.
+  - Implemented linear pass parser without `splitlines()`, semantic validator, and canonical printer in `app/dsl/`.
+  - Phase 2 commit: `741388c`.
+  - Tests run: `tests/test_dsl.py`, `tests/test_dsl_hostile.py` (12 passed).
+- **Phase 3 — Mocks and chaos switches**:
+  - Implemented `app/llm/mock.py` with deterministic SHA-256 mapping, cheap (80% valid, 10% malformed, 5% invalid DSL, 5% 429) and strong (97% valid, 3% hang) outcome distributions, responsive cancellation, and chaos switches.
+  - Implemented `app/llm/chaos.py` for database-backed switch toggles with defaults.
+  - Implemented `app/memory/embedder.py` with pure-Python SHA-256 64-dimensional feature hashing and cosine similarity helper.
+  - Created `fixtures/projects.json` (two projects, 8 shots, 3 chars, 3 props each, unknown license item, poisoned instructions, cross-project near-duplicates) and `fixtures/rights.json`.
+  - Added `TIME_SCALE` to `app/config.py` and `docker-compose.yml`.
+  - Demonstrated intentional failure: shown `test_determinism_across_processes` failing when Python `hash()` is substituted for `sha256`, and passing with `sha256`.
+  - Tests run: `docker compose run --rm api python -m pytest tests/` -> 30 passed in 71.61s.
 
 ## Failing / known issues
 - None.
 
 ## Assumptions
-- DSL syntax parser ignores blank lines and `#` comment lines, retaining inline `#` as part of values.
-- DSL parser truncates error collection at 50 errors.
-- Oversized inputs (> 256 KB) are rejected before line scanning.
+- `call()` receives chaos dictionary directly so tests run without requiring DB connection.
+- Latency is scaled by `settings.TIME_SCALE` (set to `0.01` for tests) to allow high-throughput test suites.
 
 ## Cut or deferred
 - None.
 
 ## Next step
-- Phase 3: Implement mocks and chaos switches in `app/llm/mock.py` and pure-Python hashed embedder in `app/memory/embedder.py` with tests in `tests/test_mock_llm.py` and `tests/test_embedder.py`.
+- Phase 4: Safety and rights gate (`app/gate/`) with reason codes (`RIGHTS_REAL_PERSON`, `RIGHTS_LIVING_ARTIST`, `RIGHTS_TRADEMARK`, `SAFETY_UNSAFE`, `GATE_ERROR`), Unicode normalizations, near-miss tests, and fail-closed exception verification (`tests/test_gate.py`).
