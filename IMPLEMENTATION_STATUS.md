@@ -75,6 +75,17 @@
   - Demonstrated two intentional regression failures: removed idempotency check (caught by `test_missing_idempotency_key_returns_400` returning 202 instead of 400) and removed `Last-Event-ID` filtering (caught by `test_t11_sse_reconnect_with_last_event_id_no_missing_no_duplicates` asserting duplicate event IDs), both restored and verified.
   - Tests run: `tests/test_api.py`, `tests/test_sse.py` (12 passed in 9.93s), full suite `tests/` (103 passed in 57.94s).
 
+- **Phase 9 — Evaluation harness and benchmark**:
+  - Implemented deterministic benchmark dataset generator in `evals/cases.py` producing 120 cases across 7 categories (clean, continuity, injection, rights_block, allowed_near_miss, cross_project, cache_pair) from fixed seed 42.
+  - Implemented semantic cache threshold calibration sweep in `evals/calibration.py` calibrating threshold 0.85 with 0.0% false-hit rate on negative intent pairs.
+  - Implemented evaluation metrics in `evals/metrics.py` (DSL validity, axis coverage, grounded-continuity accuracy, injection resistance, unsafe precision/recall, cost per accepted prompt, cache hit/false-hit rates, p95 latency, pre/post grounding hallucination rates).
+  - Implemented baseline runner (single cheap mock call, parse, ship if valid) and full system runner (intake, safety gate, memory grounding, taint checking, two-stage cascade repair, two-layer cache publication) in `evals/runner.py`.
+  - Implemented markdown report generator in `evals/report.py` outputting `EVAL_RESULTS.md` with complete metrics tables, calibration sweep, environmental disclosures, mock caveats, and known limitations.
+  - Implemented harness CLI runner `evals/run.py` and `make eval` target with host volume mount.
+  - Added test coverage in `tests/test_eval.py` (4 tests) verifying determinism, controlled metrics calculation, threshold calibration, and markdown sections.
+  - Demonstrated intentional failure: modified `assert len(cases1) == 999` in `test_benchmark_cases_determinism_and_coverage` (caught with AssertionError: assert 120 == 999), restored and verified.
+  - Tests run: `tests/test_eval.py` (4 passed in 5.22s), `python -m evals.run` (120 cases benchmarked in 38.63s), full suite `tests/` (107 passed in 104.61s).
+
 ## Failing / known issues
 - None.
 
@@ -93,4 +104,4 @@
 - None.
 
 ## Next step
-- Phase 9: Evaluation harness (`evals/`, 100 cases, baseline vs system, metrics, threshold sweep, `EVAL_RESULTS.md`).
+- Phase 10: Operator tools and chaos harness (`ui/`, `scripts/chaos.py`, `scripts/run_all.sh`).

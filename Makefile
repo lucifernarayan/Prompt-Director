@@ -13,8 +13,7 @@ test:
 	docker compose run --rm api python -m pytest
 
 eval:
-	@echo not implemented yet
-	@exit 1
+	docker compose run -e DATABASE_URL=postgresql://postgres:postgres@postgres:5432/prompt_director_test -v .:/app --rm api python -m evals.run
 
 chaos:
 	@echo not implemented yet
