@@ -94,6 +94,12 @@
   - Added `test_seed_idempotency_from_empty_database` in `tests/test_fixtures.py` verifying row counts and balances remain unchanged across repeated runs.
   - Proved clean cold-start execution through: `docker compose down -v`, `docker compose up --build -d`, `docker compose ps`, consecutive `pytest -q` runs (108 passed), `scripts/t7.ps1` (T7 PASS), and `Invoke-RestMethod` (202 for user_a, 403 for user_b).
 
+- **Phase 10 — Chaos harness and operator metrics**:
+  - Implemented `scripts/chaos.ps1` with actions for `t7`, `t8`, `t11`, stop/start for redis, worker, postgres, and restore. Added `make chaos` target in `Makefile`.
+  - Added `GET /metrics` in `app/api/main.py` before static mount, returning JSON with jobs by status and total ledger charges.
+  - Added test coverage in `tests/test_api.py` (`test_get_metrics_endpoint`).
+  - Verified `scripts/chaos.ps1` runs for `t8` and `t11` (both passed).
+
 ## Failing / known issues
 - None.
 

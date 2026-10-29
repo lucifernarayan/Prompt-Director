@@ -284,3 +284,23 @@ def test_api_fairness_user_b_finishes_before_user_a_tail(client):
     assert b_finished_at_a_count is not None, "User B's job did not finish in time!"
     # User B must finish before User A's tail (e.g. before User A completes all 20 jobs)
     assert b_finished_at_a_count < 20, f"User B finished after all 20 of User A's jobs (count: {b_finished_at_a_count})"
+
+
+def test_get_metrics_endpoint(client):
+    """GET /metrics returns JSON with jobs by status and total charged cost from ledger."""
+    # Create a job so metrics has data
+    resp_post = client.post(
+        "/v1/assist",
+        headers={"Idempotency-Key": f"metrics-test-{uuid.uuid4().hex[:6]}", "X-User-Id": "user_a"},
+        json={"project_id": "proj_a", "idea": "metrics test idea"},
+    )
+    assert resp_post.status_code == 202
+
+    resp = client.get("/metrics")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "jobs_by_status" in data
+    assert "total_charged_micro" in data
+    assert isinstance(data["jobs_by_status"], dict)
+    assert isinstance(data["total_charged_micro"], int)
+    assert data["jobs_by_status"].get("pending", 0) >= 1

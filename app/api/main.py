@@ -79,7 +79,35 @@ def healthz():
     )
 
 
-# Mount static files at root AFTER defining routes like /healthz
+@app.get("/metrics")
+def get_metrics():
+    """GET /metrics: JSON with jobs by status and total charged cost from the ledger."""
+    jobs_by_status: dict[str, int] = {}
+    total_charged_micro: int = 0
+    try:
+        with psycopg.connect(settings.DATABASE_URL, connect_timeout=3) as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT status, count(*) FROM jobs GROUP BY status;")
+                for status, cnt in cur.fetchall():
+                    jobs_by_status[status] = cnt
+
+                cur.execute("SELECT COALESCE(SUM(amount_micro), 0) FROM account_ledger WHERE phase = 'settle';")
+                row = cur.fetchone()
+                if row:
+                    total_charged_micro = int(row[0])
+    except Exception as e:
+        logger.error("Failed to collect metrics: %s", e)
+        return JSONResponse(status_code=500, content={"error": "Failed to collect metrics"})
+
+    return JSONResponse(
+        content={
+            "jobs_by_status": jobs_by_status,
+            "total_charged_micro": total_charged_micro,
+        }
+    )
+
+
+# Mount static files at root AFTER defining routes like /healthz and /metrics
 ui_dir = get_ui_dir()
 if ui_dir.exists():
     app.mount("/", StaticFiles(directory=str(ui_dir), html=True), name="ui")
