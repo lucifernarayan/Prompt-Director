@@ -226,6 +226,8 @@ def test_t8_twenty_identical_concurrent_requests_single_flight():
     jobs = []
     with psycopg.connect(settings.DATABASE_URL, autocommit=True) as conn:
         chaos.set(conn, "force_outcome:cheap", "valid")
+        chaos.set(conn, "force_confidence:cheap", "0.9")
+        chaos.set(conn, "fake_citation_rate:cheap", "0")
         for i in range(20):
             j = create_job(conn, "user_a", "proj_a", f"t8-req-{i}-{uuid.uuid4().hex[:6]}", {"idea": idea})
             jobs.append(j["id"])

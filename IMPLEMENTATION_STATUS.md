@@ -65,6 +65,15 @@
   - Integrated cache and inflight workflows into `app/graph/nodes.py` (`intent_node`, `finalize_node`) and `app/graph/runner.py`.
   - Added gate test coverage in `tests/test_cache.py`: T8 (20 concurrent requests coalesce to 1 provider call, 19 cache hits, billed quote per D2), T9 (memory version bump prevents stale hit), T3 (cross-project cache isolation), semantic cache hit on paraphrase, safety gate enforcement on cache reads and writes, stale inflight owner publication rejection.
   - Tests run: `tests/test_cache.py` (7 passed in 7.42s), full suite `tests/` (91 passed in 57.51s).
+- **Phase 8 — Async API, SSE, cancel, and rate limiting**:
+  - Implemented `POST /v1/assist` in `app/api/routes.py` with mandatory `Idempotency-Key` (400 if missing), `X-User-Id` authentication, project membership check (403), balance hold admission (402 if short), idempotent return on duplicate request (202), and conflict detection on same key with different body (409).
+  - Implemented `GET /v1/assist/{id}/events` SSE streaming endpoint with per-job increasing event ids, `Last-Event-ID` replay without missing or duplicate axis events, owner-only authorization (404/403), and termination on `done` event.
+  - Implemented `POST /v1/assist/{id}/cancel` with owner authorization, setting `cancel_requested = TRUE`, releasing hold with charge 0, and cancelling pending/running jobs.
+  - Implemented Redis fixed-window rate limiter in `app/rate_limit.py` returning 429 and `Retry-After` header when limit exceeded.
+  - Registered routes in `app/api/main.py` before static file mounting.
+  - Added test coverage in `tests/test_api.py` (10 tests) and `tests/test_sse.py` (2 tests) verifying T11 SSE reconnect replay, cancel balance refund and ledger release, idempotency, authorization, rate limiting, and 20:1 user fairness.
+  - Demonstrated two intentional regression failures: removed idempotency check (caught by `test_missing_idempotency_key_returns_400` returning 202 instead of 400) and removed `Last-Event-ID` filtering (caught by `test_t11_sse_reconnect_with_last_event_id_no_missing_no_duplicates` asserting duplicate event IDs), both restored and verified.
+  - Tests run: `tests/test_api.py`, `tests/test_sse.py` (12 passed in 9.93s), full suite `tests/` (103 passed in 57.94s).
 
 ## Failing / known issues
 - None.
@@ -78,9 +87,10 @@
 - `jobs.flags` stores `{"body": body}` to preserve intake request payload without schema changes.
 - In `claim_job`, fairness active lease count counts unexpired leases where `lease_expires_at > NOW()` and status is non-terminal.
 - Follower jobs waiting on single-flight inflight leader defer with `run_after = NOW() + INTERVAL '200 milliseconds'` and release their worker lease.
+- Redis fixed-window rate limiting uses `RATE_LIMIT_WINDOW_SECONDS` (default 60s) and `RATE_LIMIT_REQUESTS` (default 60).
 
 ## Cut or deferred
 - None.
 
 ## Next step
-- Phase 8: HTTP API and SSE (FastAPI, Redis pub/sub, auth, event streams).
+- Phase 9: Evaluation harness (`evals/`, 100 cases, baseline vs system, metrics, threshold sweep, `EVAL_RESULTS.md`).

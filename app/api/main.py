@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 import psycopg
 import redis
 
+from app.api.routes import router as assist_router
 from app.config import settings
 from app.db.migrate import run_migrations
 from app.obs.logging import setup_logging
@@ -38,6 +39,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+app.include_router(assist_router)
 
 
 @app.get("/healthz")

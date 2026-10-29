@@ -28,6 +28,7 @@ def clean_db():
                 "TRUNCATE jobs, checkpoints, llm_calls, job_events, account_ledger, exact_cache, semantic_cache, inflight, feedback, chaos CASCADE;"
             )
             cur.execute("DELETE FROM accounts WHERE user_id NOT IN ('user_a', 'user_b');")
+            cur.execute("DELETE FROM project_members WHERE user_id NOT IN ('user_a', 'user_b');")
             cur.execute(
                 "UPDATE accounts SET balance_micro = %s WHERE user_id IN ('user_a', 'user_b');",
                 (INITIAL_BALANCE_MICRO,),
