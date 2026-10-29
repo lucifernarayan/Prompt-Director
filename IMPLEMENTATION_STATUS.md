@@ -9,20 +9,23 @@
   - PostgreSQL advisory-lock migration runner (`app/db/migrate.py`) and initial migration (`db/migrations/001_extensions.sql`).
   - Baseline `/healthz` endpoint, static UI file serving, JSON logging (`app/obs/logging.py`), and worker heartbeat loop (`app/worker/main.py`).
   - Base commit: `69e9d5a`, tagged `clock-start`.
-  - Tests run: Verified `/healthz` returns `{"db":"ok","redis":"ok"}`, worker heartbeats from 2 container hostnames, worker kill and recovery, all text files LF (0 CRLF), and cold start from scratch.
+- **Phase 1 — Schema, pricing, fixtures loader**:
+  - Implemented `db/migrations/002_core.sql` covering all section 3 tables, unique constraints (`jobs(user_id, idempotency_key)`, `llm_calls(job_id, call_key)`, `account_ledger(job_id, phase)`, `memory_items` PK `(project_id, id)`), generated tsvector on `memory_items.body` with GIN index, and CHECK constraints (`account_ledger.phase IN ('hold', 'settle', 'release')`, `accounts.balance_micro >= 0`).
+  - Implemented `app/pricing.py` with integer micro-credits only (`FULL_QUOTE = 100_000`, `AXIS_EDIT_QUOTE = 40_000`, `COST_CAP = 80_000`), worst-case token counts, and model rates satisfying: (a) single strong call at worst case (70,000) fits inside cap, and (b) cheap + cheap + strong at worst case (90,000) exceeds cap.
+  - Implemented `app/fixtures_loader.py` to seed two projects, two users, isolated memberships, and funded accounts idempotently.
+  - Added tests in `tests/test_schema.py` and verified phase gate.
+  - Tests run: `docker compose run --rm api python -m pytest tests/test_schema.py` -> 7 passed in 2.10s.
+  - Verified concurrent startup: API and two worker containers started together without migration race conditions, `/healthz` returned 200 OK (`{"db":"ok","redis":"ok"}`).
 
 ## Failing / known issues
-- None. (No tests in `tests/` yet beyond `tests/__init__.py`).
+- None.
 
 ## Assumptions
-- Baseline scaffold corresponds to Phase 0; implementation starts with Phase 1 per `IMPLEMENTATION_PLAN.md`.
-- Disagreements between plan and actual files at start:
-  - Core schema `db/migrations/002_core.sql`, `app/pricing.py`, and `app/fixtures_loader.py` are specified in Phase 1 and not yet present.
-  - Phase 3 specifies `TIME_SCALE` environment variable for mock latencies, to be wired into config during Phase 3.
-  - Section 5 lists trap test suites (`test_injection.py`, `test_grounding.py`, etc.) which will be created alongside each phase.
+- `chaos.value` is stored as `TEXT` for simplicity across boolean, float, and string switches.
+- Fixture test accounts funded with 10 credits (`10_000_000` micro-credits).
 
 ## Cut or deferred
 - None.
 
 ## Next step
-- Phase 1: Implement `db/migrations/002_core.sql`, `app/pricing.py`, `app/fixtures_loader.py`, and gate tests (unique constraints, atomic balance hold, concurrent migration idempotency).
+- Phase 2: Implement DSL parser, canonical printer, and validator in `app/dsl/` with Hypothesis property tests and hostile input tests (`tests/test_dsl_hostile.py`).
