@@ -34,15 +34,26 @@
   - Demonstrated two intentional regression failures: disabled `HOMOGLYPH_MAP` (caused homoglyph failure) and removed `try/except` fail-closed wrapper (caused RuntimeError leak), both restored and passing.
   - Tests run: `tests/test_gate.py` (8 passed), full suite `tests/` (38 passed in 17.05s).
 
+- **Phase 5 — Project memory, grounding, injection defense**:
+  - Implemented `app/memory/store.py` (`load_fixtures_memory`, `index_item` with atomic version bump, `retrieve` with hybrid full-text + vector RRF k=60 and greedy token budget packing).
+  - Implemented `app/memory/defense.py` (`quarantine` replacing injected items with placeholder, `build_request` formatting clean memory, `taint_check` detecting poisoned payload tokens, `enforce_locked` locking axes).
+  - Implemented `app/memory/grounding.py` (`ground` continuity claims against retrieved records, `has_ungrounded`, `hallucination_rate` helper).
+  - Extended `app/fixtures_loader.py` to seed `memory_items` from `fixtures/projects.json` idempotently.
+  - Demonstrated two intentional regression failures: removed `project_id` filter from vector query in `retrieve` (caught by `test_t3_isolation_near_duplicate_query`) and disabled `quarantine` (caught by `test_t1_injection_full_defense`), both restored and verified.
+  - Tests run: `tests/test_memory.py`, `tests/test_isolation.py`, `tests/test_grounding.py`, `tests/test_injection.py`, `tests/test_schema.py` (28 passed in 4.32s).
+
 ## Failing / known issues
 - None.
 
 ## Assumptions
 - `call()` receives chaos dictionary directly so tests run without requiring DB connection.
 - Latency in test runs defaults to `TIME_SCALE=0.001` via `tests/conftest.py` for sub-minute test cycles.
+- `retrieve()` includes `project_id` in returned items to allow strict tenant boundary assertions.
+- `taint_check` excludes standard grammatical stopwords to eliminate false positives on clean responses.
+- `hallucination_rate` treats continuity `"none"` as non-hallucinated.
 
 ## Cut or deferred
 - None.
 
 ## Next step
-- Phase 5: Memory retrieval and citation verifier (`app/memory/`).
+- Phase 6: Graph, worker, billing, cascade (`app/graph/`, `app/worker/`).

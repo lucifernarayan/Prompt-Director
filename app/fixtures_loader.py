@@ -2,6 +2,7 @@ import logging
 import psycopg
 
 from app.config import settings
+from app.memory.store import load_fixtures_memory
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +47,10 @@ def load_fixtures(conninfo: str | None = None) -> None:
                 (INITIAL_BALANCE_MICRO, INITIAL_BALANCE_MICRO),
             )
 
-    logger.info("Fixtures loaded successfully (projects, memberships, accounts).")
+        # 4. Project memory items from fixtures/projects.json
+        load_fixtures_memory(conn)
+
+    logger.info("Fixtures loaded successfully (projects, memberships, accounts, memory).")
 
 
 if __name__ == "__main__":
