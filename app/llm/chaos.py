@@ -8,6 +8,10 @@ CHAOS_DEFAULTS: dict[str, str] = {
     "obey_injection": "false",
     "fake_citation_rate:cheap": "0.15",
     "fake_citation_rate:strong": "0.05",
+    "force_outcome:cheap": "",
+    "force_outcome:strong": "",
+    "force_confidence:cheap": "",
+    "force_confidence:strong": "",
 }
 
 

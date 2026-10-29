@@ -42,6 +42,14 @@
   - Demonstrated two intentional regression failures: removed `project_id` filter from vector query in `retrieve` (caught by `test_t3_isolation_near_duplicate_query`) and disabled `quarantine` (caught by `test_t1_injection_full_defense`), both restored and verified.
   - Tests run: `tests/test_memory.py`, `tests/test_isolation.py`, `tests/test_grounding.py`, `tests/test_injection.py`, `tests/test_schema.py` (28 passed in 4.32s).
 
+- **Phase 6a — Graph runner, cascade, cost cap, and billing**:
+  - Implemented `app/pricing.py` additions (`cost_of_attempt` covering rate_limit, timeout, and standard attempts).
+  - Implemented `app/jobs.py` (`create_job` with atomic hold and idempotency check, `settle` with single-charge idempotency via unique ledger constraint).
+  - Implemented `app/graph/` (`nodes.py` pure functions for intent, retrieve, draft, check, repair, finalize; `runner.py` with transactional node checkpointing, lease fencing, and cancel check; `state.py` state initialization).
+  - Extended `app/llm/chaos.py` and `app/llm/mock.py` with `force_outcome:<model>` and `force_confidence:<model>` test hooks.
+  - Demonstrated two intentional regression failures: removed `call_key` reuse check (caught by `test_call_key_reuse_skips_provider_call`) and bypassed unique ledger constraint in `settle()` (caught by `test_settle_delivered_vs_released_and_no_double_charge`), both restored and verified.
+  - Tests run: `tests/test_cascade.py`, `tests/test_cost_cap.py`, `tests/test_billing.py`, `tests/test_resume_unit.py`, `tests/test_schema.py` (23 passed in 10.06s).
+
 ## Failing / known issues
 - None.
 
@@ -51,9 +59,10 @@
 - `retrieve()` includes `project_id` in returned items to allow strict tenant boundary assertions.
 - `taint_check` excludes standard grammatical stopwords to eliminate false positives on clean responses.
 - `hallucination_rate` treats continuity `"none"` as non-hallucinated.
+- `jobs.flags` stores `{"body": body}` to preserve intake request payload without schema changes.
 
 ## Cut or deferred
 - None.
 
 ## Next step
-- Phase 6: Graph, worker, billing, cascade (`app/graph/`, `app/worker/`).
+- Phase 6b: Worker loop, lease management, concurrency control, and crash recovery (`app/worker/`).

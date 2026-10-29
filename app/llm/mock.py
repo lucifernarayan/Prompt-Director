@@ -90,8 +90,30 @@ def call(
     p_fake_cite = int(h[24:32], 16) / 0xFFFFFFFF
 
     # 3. Model outcome determination
-    # Base latency: cheap 0.3-2.0s, strong 2.0-8.0s
-    if model == "cheap":
+    forced_spec = chaos.get(f"force_outcome:{model}")
+    forced_outcome = None
+    if forced_spec and isinstance(forced_spec, str):
+        forced_items = [x.strip().lower() for x in forced_spec.split(",") if x.strip()]
+        if attempt < len(forced_items):
+            forced_outcome = forced_items[attempt]
+
+    if forced_outcome:
+        base_latency = 0.3 if model == "cheap" else 2.0
+        if forced_outcome in ("rate_limit", "429"):
+            _sleep_with_cancel(base_latency, should_cancel, tokens_in)
+            raise ProviderRateLimit("Provider rate limit 429", tokens_in=tokens_in)
+        elif forced_outcome in ("timeout", "hang"):
+            _sleep_with_cancel(timeout_s, should_cancel, tokens_in)
+            raise ProviderTimeout(f"Provider hang exceeded {timeout_s}s", tokens_in=tokens_in)
+        elif forced_outcome in ("down",):
+            raise ProviderDown(f"Mock provider {model} is down via chaos switch", tokens_in=tokens_in)
+        elif forced_outcome in ("malformed", "malformed_json"):
+            outcome = "malformed_json"
+        elif forced_outcome in ("invalid", "invalid_dsl"):
+            outcome = "invalid_dsl"
+        else:
+            outcome = "valid"
+    elif model == "cheap":
         base_latency = 0.3 + p_latency * 1.7
         # Outcome bands: 5% rate-limit, 10% malformed JSON, 5% invalid DSL, 80% valid
         if p_outcome < 0.05:
@@ -159,6 +181,13 @@ def call(
                 confidence = round(0.20 + (p_confidence / 0.02) * 0.25, 2)
             else:
                 confidence = round(0.55 + ((p_confidence - 0.02) / 0.98) * 0.44, 2)
+
+        forced_conf = chaos.get(f"force_confidence:{model}")
+        if forced_conf:
+            try:
+                confidence = float(forced_conf)
+            except ValueError:
+                pass
 
         # Build DSL axes
         subject_val = f"hero based on {idea}"

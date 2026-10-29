@@ -55,6 +55,23 @@ def calculate_cost_micro(model: str, tokens_in: int, tokens_out: int) -> int:
     return (tokens_in * CHEAP_INPUT_RATE_MICRO) + (tokens_out * CHEAP_OUTPUT_RATE_MICRO)
 
 
+def cost_of_attempt(model: str, tokens_in: int, tokens_out: int, outcome: str) -> int:
+    """Compute cost of a provider attempt in integer micro-credits.
+
+    - outcome 'rate_limit' (429) costs 0.
+    - outcome 'timeout' costs tokens_in * input_rate only.
+    - every other outcome costs tokens_in * in_rate + tokens_out * out_rate.
+    """
+    in_rate = STRONG_INPUT_RATE_MICRO if model == "strong" else CHEAP_INPUT_RATE_MICRO
+    out_rate = STRONG_OUTPUT_RATE_MICRO if model == "strong" else CHEAP_OUTPUT_RATE_MICRO
+
+    if outcome == "rate_limit":
+        return 0
+    elif outcome == "timeout":
+        return tokens_in * in_rate
+    return (tokens_in * in_rate) + (tokens_out * out_rate)
+
+
 def worst_case_cost(model: str) -> int:
     """Return worst-case cost for a model call."""
     if model == "strong":
