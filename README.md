@@ -38,19 +38,26 @@ The harness writes `EVAL_RESULTS.md` in the mounted repository. It uses 120 fixe
 
 ## Chaos scenarios
 
-The planned combined runner `scripts/chaos.ps1` is not present in this checkout. Its invocation syntax and scenarios below are **unverified** until that file exists. `make chaos` currently reports that it is not implemented. `scripts/t7.ps1` exists for T7; it has not been run as part of this documentation task. The commands invoking the missing runner are placeholders for its expected scenario names, not verified CLI syntax.
+The operator harness `scripts/chaos.ps1` runs scenarios for fault tolerance and recovery (Windows: make not required):
 
-| Scenario | Bash | PowerShell |
-|---|---|---|
-| T7: kill a worker between draft and validation, then verify resume | `pwsh -File scripts/chaos.ps1 -Scenario T7` **unverified**; existing script: `pwsh -File scripts/t7.ps1` | `./scripts/t7.ps1` (present; execution unverified); combined runner: `./scripts/chaos.ps1 -Scenario T7` **unverified** |
-| T8: submit 20 identical requests and check single-flight | `pwsh -File scripts/chaos.ps1 -Scenario T8` **unverified** | `./scripts/chaos.ps1 -Scenario T8` **unverified** |
-| T11: disconnect and reconnect SSE with `Last-Event-ID` | `pwsh -File scripts/chaos.ps1 -Scenario T11` **unverified** | `./scripts/chaos.ps1 -Scenario T11` **unverified** |
-| Take down the cheap mock LLM | `docker compose run --rm api python -m app.llm.chaos_cli set llm_down:cheap true` | `docker compose run --rm api python -m app.llm.chaos_cli set llm_down:cheap true` |
-| Take down Redis | `docker compose stop redis` | `docker compose stop redis` |
-| Take down the vector store (pgvector is provided by PostgreSQL here) | `docker compose stop postgres` | `docker compose stop postgres` |
-| Take down one worker | `docker kill "$(docker compose ps -q worker | head -n 1)"` | `$worker = docker compose ps -q worker | Select-Object -First 1; docker kill $worker` |
+```powershell
+.\scripts\chaos.ps1 t7             # T7: kill a worker, verify transactional recovery
+.\scripts\chaos.ps1 t8             # T8: submit 20 identical requests, verify single-flight coalescing
+.\scripts\chaos.ps1 t11            # T11: SSE reconnect and replay guarantee
+.\scripts\chaos.ps1 stop-redis     # Stop Redis
+.\scripts\chaos.ps1 start-redis    # Start Redis
+.\scripts\chaos.ps1 stop-worker    # Stop one worker container
+.\scripts\chaos.ps1 start-worker   # Start 2 worker replicas
+.\scripts\chaos.ps1 stop-postgres  # Stop Postgres
+.\scripts\chaos.ps1 start-postgres # Start Postgres
+.\scripts\chaos.ps1 restore        # Restore all services with 2 workers
+```
 
-Restore services with `docker compose up -d`. Clear the LLM switch with `docker compose run --rm api python -m app.llm.chaos_cli clear llm_down:cheap`. Stopping PostgreSQL also takes down the application's primary database, so the vector-store scenario is a database outage in this setup.
+Make equivalent:
+```sh
+make chaos ACTION=t8
+make chaos ACTION=t11
+```
 
 ## Disclosure and limitations
 

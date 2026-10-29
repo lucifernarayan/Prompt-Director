@@ -94,11 +94,18 @@
   - Added `test_seed_idempotency_from_empty_database` in `tests/test_fixtures.py` verifying row counts and balances remain unchanged across repeated runs.
   - Proved clean cold-start execution through: `docker compose down -v`, `docker compose up --build -d`, `docker compose ps`, consecutive `pytest -q` runs (108 passed), `scripts/t7.ps1` (T7 PASS), and `Invoke-RestMethod` (202 for user_a, 403 for user_b).
 
-- **Phase 10 — Chaos harness and operator metrics**:
-  - Implemented `scripts/chaos.ps1` with actions for `t7`, `t8`, `t11`, stop/start for redis, worker, postgres, and restore. Added `make chaos` target in `Makefile`.
-  - Added `GET /metrics` in `app/api/main.py` before static mount, returning JSON with jobs by status and total ledger charges.
-  - Added test coverage in `tests/test_api.py` (`test_get_metrics_endpoint`).
-  - Verified `scripts/chaos.ps1` runs for `t8` and `t11` (both passed).
+- **Phase 10 — Operator tools and UI**:
+  - Implemented `GET /metrics` in `app/api/main.py` returning jobs by status and total micro-credit charges from ledger. Verified with `test_get_metrics_endpoint` in `tests/test_api.py`.
+  - UI `ui/index.html` built and served statically; wrapped init in try/catch with visible page-level error handler; accept/reject feedback persisted in browser `localStorage` only (no backend endpoint). Browser rendering checked statically; live HTTP endpoints (`GET /`, `GET /healthz`, `GET /metrics`, `POST /v1/assist`, `GET /v1/assist/{id}/events`) verified.
+
+- **Phase 11 — Chaos harness and documentation**:
+  - Implemented `scripts/chaos.ps1` supporting `t7`, `t8`, `t11`, container stop/start (`redis`, `worker`, `postgres`), and `restore`. Verified `t7`, `t8`, and `t11`. Added `make chaos` target in `Makefile`.
+  - Updated `README.md` and `ARCHITECTURE.md` documenting PowerShell equivalents ("Windows: make not required") and chaos scenarios.
+
+- **Final Gate & Verification**:
+  - Single command startup: `docker compose up --build -d` starts PostgreSQL (pgvector), Redis, API (with automatic migrations and demo seeding), and 2 worker replicas.
+  - Test suite: `docker compose run --rm api python -m pytest -q` passed 108/108 tests.
+  - Benchmark evaluation: 120 cases; system 100% valid DSL vs baseline, 100% injection resistance vs 6.7% baseline, 100% unsafe block recall vs 0% baseline.
 
 ## Failing / known issues
 - None.
@@ -113,9 +120,13 @@
 - In `claim_job`, fairness active lease count counts unexpired leases where `lease_expires_at > NOW()` and status is non-terminal.
 - Follower jobs waiting on single-flight inflight leader defer with `run_after = NOW() + INTERVAL '200 milliseconds'` and release their worker lease.
 - Redis fixed-window rate limiting uses `RATE_LIMIT_WINDOW_SECONDS` (default 60s) and `RATE_LIMIT_REQUESTS` (default 60).
+- Eval metrics: cost-per-accepted-prompt uses different bases (baseline raw mock cost vs system billed quote); cache hit rate is measured over cache-pair cases only; latency uses simulated mock provider with TIME_SCALE.
 
 ## Cut or deferred
-- None.
+- JSON log fields `trace_id` and granular per-node timings.
+- Server-side feedback persistence endpoint (feedback stored in browser localStorage only).
+- Phase 12 (hosted cloud / multi-region deployment).
+- Manual execution of individual service stop/start chaos commands (verified t7, t8, t11 via chaos runner).
 
 ## Next step
-- Phase 10: Operator tools and chaos harness (`ui/`, `scripts/chaos.py`, `scripts/run_all.sh`).
+- Complete. Tagged `clock-end`.
