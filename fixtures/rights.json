@@ -17,6 +17,12 @@
     "Nike Swoosh",
     "Walt Disney"
   ],
+  "unsafe_terms": [
+    "graphic gore",
+    "sexual content involving minors",
+    "self-harm instructions",
+    "weapon assembly instructions"
+  ],
   "allowed_near_misses": [
     "Taylor",
     "Swift River",

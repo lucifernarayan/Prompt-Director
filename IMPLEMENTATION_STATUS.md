@@ -24,15 +24,25 @@
   - Demonstrated intentional failure: shown `test_determinism_across_processes` failing when Python `hash()` is substituted for `sha256`, and passing with `sha256`.
   - Tests run: `docker compose run --rm api python -m pytest tests/` -> 30 passed in 71.61s.
 
+- **Phase 4 — Safety and rights gate**:
+  - Implemented pure function `check(fields) -> GateResult` in `app/gate/` (`normalizer.py`, `checker.py`, `__init__.py`) with `GATE_VERSION = "1.0.0"`.
+  - Normalization: NFKC -> casefold -> strip `Cf`/`Cc` characters -> Cyrillic/Greek homoglyphs -> non-alphanumeric to spaces -> collapse 3+ single letter runs ("t o m  c r u i s e") -> collapse whitespace.
+  - Linear first-token sequence matching against `fixtures/rights.json` with zero-overblocking on near misses and whole-token matches only.
+  - Fail closed on non-string inputs, payload > 256 KB, and internal exceptions.
+  - Added `unsafe_terms` to `fixtures/rights.json`.
+  - Scaled test latency via `tests/conftest.py` (`TIME_SCALE=0.001`), cutting full suite run time from 71.61s to 17.05s.
+  - Demonstrated two intentional regression failures: disabled `HOMOGLYPH_MAP` (caused homoglyph failure) and removed `try/except` fail-closed wrapper (caused RuntimeError leak), both restored and passing.
+  - Tests run: `tests/test_gate.py` (8 passed), full suite `tests/` (38 passed in 17.05s).
+
 ## Failing / known issues
 - None.
 
 ## Assumptions
 - `call()` receives chaos dictionary directly so tests run without requiring DB connection.
-- Latency is scaled by `settings.TIME_SCALE` (set to `0.01` for tests) to allow high-throughput test suites.
+- Latency in test runs defaults to `TIME_SCALE=0.001` via `tests/conftest.py` for sub-minute test cycles.
 
 ## Cut or deferred
 - None.
 
 ## Next step
-- Phase 4: Safety and rights gate (`app/gate/`) with reason codes (`RIGHTS_REAL_PERSON`, `RIGHTS_LIVING_ARTIST`, `RIGHTS_TRADEMARK`, `SAFETY_UNSAFE`, `GATE_ERROR`), Unicode normalizations, near-miss tests, and fail-closed exception verification (`tests/test_gate.py`).
+- Phase 5: Memory retrieval and citation verifier (`app/memory/`).

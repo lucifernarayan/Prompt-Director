@@ -43,8 +43,8 @@ def _is_truthy(val: Any) -> bool:
 
 
 def _sleep_with_cancel(duration_s: float, should_cancel: Callable[[], bool] | None, tokens_in: int) -> None:
-    time_scale = getattr(settings, "TIME_SCALE", 1.0)
-    scaled_duration = max(0.001, duration_s * time_scale)
+    time_scale = float(os.environ.get("TIME_SCALE", getattr(settings, "TIME_SCALE", 1.0)))
+    scaled_duration = max(0.0001, duration_s * time_scale)
     elapsed = 0.0
     slice_s = 0.05
 
