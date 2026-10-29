@@ -70,3 +70,73 @@ def test_fixtures_structure():
     assert len(rights["living_artists"]) >= 3
     assert len(rights["trademarks"]) >= 3
     assert len(rights["allowed_near_misses"]) >= 3
+
+
+def test_seed_idempotency_from_empty_database():
+    """Starting from an empty database, seed creates memberships and running seed twice leaves balances and row counts unchanged."""
+    import psycopg
+    from app.config import settings
+    from app.fixtures_loader import INITIAL_BALANCE_MICRO, load_fixtures
+
+    with psycopg.connect(settings.DATABASE_URL, autocommit=True) as conn:
+        with conn.cursor() as cur:
+            # Empty the database completely
+            cur.execute(
+                "TRUNCATE jobs, checkpoints, llm_calls, job_events, account_ledger, exact_cache, semantic_cache, inflight, feedback, chaos CASCADE;"
+            )
+            cur.execute("DELETE FROM project_members;")
+            cur.execute("DELETE FROM accounts;")
+            cur.execute("DELETE FROM memory_items;")
+            cur.execute("DELETE FROM projects;")
+
+    # 1. First run of load_fixtures
+    load_fixtures()
+
+    # Verify memberships created
+    with psycopg.connect(settings.DATABASE_URL, autocommit=True) as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT user_id, project_id FROM project_members ORDER BY user_id;")
+            memberships = cur.fetchall()
+            assert memberships == [("user_a", "proj_a"), ("user_b", "proj_b")]
+
+            # Record initial row counts
+            cur.execute("SELECT count(*) FROM projects;")
+            proj_count = cur.fetchone()[0]
+            cur.execute("SELECT count(*) FROM project_members;")
+            pm_count = cur.fetchone()[0]
+            cur.execute("SELECT count(*) FROM accounts;")
+            acc_count = cur.fetchone()[0]
+            cur.execute("SELECT count(*) FROM memory_items;")
+            mem_count = cur.fetchone()[0]
+
+            assert proj_count >= 2
+            assert pm_count == 2
+            assert acc_count == 2
+            assert mem_count > 0
+
+            # Simulate spending or balance deduction on user_a
+            cur.execute("UPDATE accounts SET balance_micro = 7500000 WHERE user_id = 'user_a';")
+            cur.execute("SELECT user_id, balance_micro FROM accounts ORDER BY user_id;")
+            balances_before = dict(cur.fetchall())
+            assert balances_before["user_a"] == 7500000
+            assert balances_before["user_b"] == INITIAL_BALANCE_MICRO
+
+    # 2. Second run of load_fixtures (simulating restart / concurrent execution)
+    load_fixtures()
+
+    # Verify row counts and balances remain unchanged
+    with psycopg.connect(settings.DATABASE_URL, autocommit=True) as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT count(*) FROM projects;")
+            assert cur.fetchone()[0] == proj_count
+            cur.execute("SELECT count(*) FROM project_members;")
+            assert cur.fetchone()[0] == pm_count
+            cur.execute("SELECT count(*) FROM accounts;")
+            assert cur.fetchone()[0] == acc_count
+            cur.execute("SELECT count(*) FROM memory_items;")
+            assert cur.fetchone()[0] == mem_count
+
+            # Balances must NOT be topped up or overwritten
+            cur.execute("SELECT user_id, balance_micro FROM accounts ORDER BY user_id;")
+            balances_after = dict(cur.fetchall())
+            assert balances_after == balances_before

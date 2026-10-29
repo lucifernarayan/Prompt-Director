@@ -44,11 +44,7 @@ def load_fixtures_memory(conn: Any) -> None:
                     """
                     INSERT INTO memory_items (project_id, id, kind, body, license, embedding)
                     VALUES (%s, %s, %s, %s, %s, %s::vector)
-                    ON CONFLICT (project_id, id) DO UPDATE SET
-                        kind = EXCLUDED.kind,
-                        body = EXCLUDED.body,
-                        license = EXCLUDED.license,
-                        embedding = EXCLUDED.embedding;
+                    ON CONFLICT (project_id, id) DO NOTHING;
                     """,
                     (proj_id, item_id, kind, body, license_val, vec_str),
                 )

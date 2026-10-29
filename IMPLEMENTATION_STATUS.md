@@ -86,6 +86,14 @@
   - Demonstrated intentional failure: modified `assert len(cases1) == 999` in `test_benchmark_cases_determinism_and_coverage` (caught with AssertionError: assert 120 == 999), restored and verified.
   - Tests run: `tests/test_eval.py` (4 passed in 5.22s), `python -m evals.run` (120 cases benchmarked in 38.63s), full suite `tests/` (107 passed in 104.61s).
 
+- **Cold-Start Fix**:
+  - Implemented `ensure_database` in `app/db/migrate.py` to automatically connect to server maintenance DB and create `prompt_director_test` or `prompt_director_eval` if non-existent, safely handling concurrent creation.
+  - Updated `tests/conftest.py` with `pytest_sessionstart` and `clean_db` resetting mutable state (`projects.memory_version = 1`, accounts, jobs, caches) and running `ensure_database`.
+  - Updated `app/api/main.py` lifespan with demo fixtures seeding after migrations using `FIXTURES_ADVISORY_LOCK_ID` and `ON CONFLICT DO NOTHING` semantics to prevent race conditions and duplicate rows on restart.
+  - Updated `scripts/t7.ps1` to poll `/healthz` (200) and verify demo seed existence before submitting.
+  - Added `test_seed_idempotency_from_empty_database` in `tests/test_fixtures.py` verifying row counts and balances remain unchanged across repeated runs.
+  - Proved clean cold-start execution through: `docker compose down -v`, `docker compose up --build -d`, `docker compose ps`, consecutive `pytest -q` runs (108 passed), `scripts/t7.ps1` (T7 PASS), and `Invoke-RestMethod` (202 for user_a, 403 for user_b).
+
 ## Failing / known issues
 - None.
 

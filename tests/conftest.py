@@ -15,12 +15,19 @@ import psycopg
 import pytest
 
 from app.config import settings
-from app.db.migrate import run_migrations
+from app.db.migrate import ensure_database, run_migrations
 from app.fixtures_loader import INITIAL_BALANCE_MICRO, load_fixtures
+
+
+def pytest_sessionstart(session):
+    """Ensure test database exists and migrations are applied before any test runs."""
+    ensure_database("prompt_director_test", settings.DATABASE_URL)
+    run_migrations()
 
 
 @pytest.fixture(autouse=True)
 def clean_db():
+    ensure_database("prompt_director_test", settings.DATABASE_URL)
     run_migrations()
     with psycopg.connect(settings.DATABASE_URL, autocommit=True) as conn:
         with conn.cursor() as cur:
@@ -29,6 +36,7 @@ def clean_db():
             )
             cur.execute("DELETE FROM accounts WHERE user_id NOT IN ('user_a', 'user_b');")
             cur.execute("DELETE FROM project_members WHERE user_id NOT IN ('user_a', 'user_b');")
+            cur.execute("UPDATE projects SET memory_version = 1;")
             cur.execute(
                 "UPDATE accounts SET balance_micro = %s WHERE user_id IN ('user_a', 'user_b');",
                 (INITIAL_BALANCE_MICRO,),

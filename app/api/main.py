@@ -10,6 +10,7 @@ import redis
 from app.api.routes import router as assist_router
 from app.config import settings
 from app.db.migrate import run_migrations
+from app.fixtures_loader import load_fixtures
 from app.obs.logging import setup_logging
 
 logger = logging.getLogger(__name__)
@@ -33,8 +34,11 @@ async def lifespan(app: FastAPI):
     try:
         run_migrations()
         logger.info("Migrations completed successfully.")
+        # Demo seeding: seed initial demo projects, users, memberships, accounts, and memory items idempotently
+        load_fixtures()
+        logger.info("Demo fixtures seeded successfully.")
     except Exception as e:
-        logger.error("Failed to run migrations at startup: %s", e)
+        logger.error("Failed to run migrations or seed fixtures at startup: %s", e)
     yield
 
 

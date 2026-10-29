@@ -6,7 +6,34 @@ Write-Host "=== Starting T7 Killed Worker Test ==="
 # 1. Ensure stack is up with 2 workers
 Write-Host "Ensuring Docker Compose stack is running with 2 workers..."
 docker compose up -d --scale worker=2
-Start-Sleep -Seconds 3
+
+# Wait for /healthz to return 200 and for the seed to exist before submitting (poll up to 60 s)
+Write-Host "Waiting for /healthz to return 200 and demo seed to exist (poll up to 60 s)..."
+$health_deadline = (Get-Date).AddSeconds(60)
+$stack_ready = $false
+
+while ((Get-Date) -lt $health_deadline) {
+    try {
+        $resp = Invoke-RestMethod -Uri "http://localhost:8000/healthz" -Method Get -TimeoutSec 2 -ErrorAction Stop
+        if ($resp.db -eq "ok" -and $resp.redis -eq "ok") {
+            # Verify seed exists (user_a is member of proj_a)
+            $seed_check = docker compose run --rm api python -c "import psycopg, sys; from app.config import settings; conn = psycopg.connect(settings.DATABASE_URL); cur = conn.cursor(); cur.execute('''SELECT 1 FROM project_members WHERE user_id = %s''', ('user_a',)); sys.exit(0 if cur.fetchone() else 1)"
+            if ($LASTEXITCODE -eq 0) {
+                $stack_ready = $true
+                Write-Host "API /healthz returned 200 and fixtures seed verified!"
+                break
+            }
+        }
+    } catch {
+        # Retry until deadline
+    }
+    Start-Sleep -Seconds 2
+}
+
+if (-not $stack_ready) {
+    Write-Host "FAIL: API /healthz did not return 200 or fixtures seed was not found within 60s."
+    exit 1
+}
 
 # 2. Set chaos switch pause_after:draft=30
 Write-Host "Setting chaos switch pause_after:draft=30..."

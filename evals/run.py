@@ -14,7 +14,7 @@ if "prompt_director_test" not in os.environ.get("DATABASE_URL", ""):
 import psycopg
 
 from app.config import settings
-from app.db.migrate import run_migrations
+from app.db.migrate import ensure_database, run_migrations
 from app.fixtures_loader import INITIAL_BALANCE_MICRO, load_fixtures
 from app.llm import chaos
 from evals.calibration import calibrate_semantic_threshold
@@ -26,6 +26,10 @@ from evals.runner import run_baseline, run_system
 
 def reset_test_db():
     """Reset isolated test database state cleanly before system eval."""
+    target_db = "prompt_director_test"
+    if "prompt_director_eval" in settings.DATABASE_URL:
+        target_db = "prompt_director_eval"
+    ensure_database(target_db, settings.DATABASE_URL)
     run_migrations()
     with psycopg.connect(settings.DATABASE_URL, autocommit=True) as conn:
         with conn.cursor() as cur:

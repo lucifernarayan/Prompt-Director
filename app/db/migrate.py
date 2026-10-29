@@ -1,13 +1,47 @@
 import logging
 import os
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 import psycopg
+from psycopg import errors, sql
 
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 
 MIGRATION_LOCK_ID = 847291048201
+
+
+def get_maintenance_url(db_url: str, maint_db: str = "postgres") -> str:
+    parts = urlsplit(db_url)
+    return urlunsplit((parts.scheme, parts.netloc, f"/{maint_db}", parts.query, parts.fragment))
+
+
+def ensure_database(target_db_name: str, conninfo: str | None = None) -> None:
+    """Connect to the server's maintenance database and CREATE DATABASE if it does not exist.
+
+    Handles concurrent creation safely via DuplicateDatabase exception.
+    """
+    db_url = conninfo or settings.DATABASE_URL
+    if not db_url:
+        raise ValueError("DATABASE_URL is not configured")
+
+    # Connect to maintenance database (try postgres first, fallback to template1)
+    maint_conn = None
+    try:
+        maint_conn = psycopg.connect(get_maintenance_url(db_url, "postgres"), autocommit=True)
+    except Exception:
+        maint_conn = psycopg.connect(get_maintenance_url(db_url, "template1"), autocommit=True)
+
+    with maint_conn:
+        with maint_conn.cursor() as cur:
+            cur.execute("SELECT 1 FROM pg_database WHERE datname = %s;", (target_db_name,))
+            if not cur.fetchone():
+                try:
+                    cur.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(target_db_name)))
+                    logger.info("Created database %s", target_db_name)
+                except errors.DuplicateDatabase:
+                    logger.debug("Database %s was concurrently created", target_db_name)
 
 
 def get_migrations_dir() -> Path:
