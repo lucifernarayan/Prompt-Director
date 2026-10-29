@@ -58,6 +58,13 @@
   - Implemented `scripts/t7.ps1` PowerShell test verifying T7 fault tolerance with killed worker.
   - Demonstrated two intentional regression failures: removed lease_owner guard from node commit (caught by `test_zombie_worker_raises_lease_lost_and_writes_nothing`) and removed running-count ordering from claim query (caught by `test_fairness_ordering_and_max_two_leases_per_user`), both restored and verified.
   - Tests run: `tests/test_worker.py` (8 passed in 12.93s), full suite `tests/` (84 passed in 47.50s), `scripts/t7.ps1` (T7 PASS).
+- **Phase 7 — Two-layer caching and single-flight coalescing**:
+  - Implemented exact cache keys and settings hashing in `app/cache/keys.py` covering model_config, schema_version, gate_version, only_axis, canonical current_dsl.
+  - Implemented single-flight request coalescing in `app/cache/inflight.py` with owner tokens, lease checks, and follower deferral (`run_after = now() + 200ms`).
+  - Implemented exact match and semantic pgvector cache lookup/publication in `app/cache/store.py` with calibrated similarity threshold 0.85 and safety gate checks on every read and write.
+  - Integrated cache and inflight workflows into `app/graph/nodes.py` (`intent_node`, `finalize_node`) and `app/graph/runner.py`.
+  - Added gate test coverage in `tests/test_cache.py`: T8 (20 concurrent requests coalesce to 1 provider call, 19 cache hits, billed quote per D2), T9 (memory version bump prevents stale hit), T3 (cross-project cache isolation), semantic cache hit on paraphrase, safety gate enforcement on cache reads and writes, stale inflight owner publication rejection.
+  - Tests run: `tests/test_cache.py` (7 passed in 7.42s), full suite `tests/` (91 passed in 57.51s).
 
 ## Failing / known issues
 - None.
@@ -70,9 +77,10 @@
 - `hallucination_rate` treats continuity `"none"` as non-hallucinated.
 - `jobs.flags` stores `{"body": body}` to preserve intake request payload without schema changes.
 - In `claim_job`, fairness active lease count counts unexpired leases where `lease_expires_at > NOW()` and status is non-terminal.
+- Follower jobs waiting on single-flight inflight leader defer with `run_after = NOW() + INTERVAL '200 milliseconds'` and release their worker lease.
 
 ## Cut or deferred
 - None.
 
 ## Next step
-- Phase 7: Caching (exact match and semantic pgvector cache), inflight single-flight request coalescing.
+- Phase 8: HTTP API and SSE (FastAPI, Redis pub/sub, auth, event streams).

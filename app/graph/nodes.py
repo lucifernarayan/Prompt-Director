@@ -2,13 +2,18 @@ import hashlib
 import json
 import sys
 from typing import Any
+import uuid
 
+from app.cache.inflight import release_inflight, try_acquire_inflight
+from app.cache.keys import compute_exact_key, compute_settings_hash
+from app.cache.store import lookup_exact, lookup_semantic, publish
 from app.dsl import parse, print_dsl, validate
 from app.gate import check as gate_check
 from app.graph.state import MEMORY_BUDGET_TOKENS
 from app.llm import chaos
 from app.llm.mock import ProviderDown, ProviderRateLimit, ProviderTimeout, call as mock_call
 from app.memory.defense import build_request, enforce_locked, quarantine, taint_check
+from app.memory.embedder import embed
 from app.memory.grounding import ground, has_ungrounded
 from app.memory.store import retrieve as memory_retrieve
 from app.pricing import cost_of_attempt, worst_case_cost
@@ -29,6 +34,7 @@ def _check_cancel(conn_read: Any, job_id: str) -> bool:
 def intent_node(conn_read: Any, job: dict[str, Any], state: dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]], list[dict[str, Any]]]:
     """Normalize user idea, parse current_dsl, lock filled axes, and gate the idea."""
     new_state = dict(state)
+    new_state.pop("defer_run_after", None)
     body = new_state.get("request") or job.get("body") or {}
     idea = body.get("idea", "").strip()
     current_dsl = body.get("current_dsl", "")
@@ -61,8 +67,71 @@ def intent_node(conn_read: Any, job: dict[str, Any], state: dict[str, Any]) -> t
         new_state["best_valid"] = None
         return new_state, [], []
 
-    new_state["next_node"] = "retrieve"
-    return new_state, [], []
+    # 1. Look up project memory_version
+    project_id = job.get("project_id", "")
+    with conn_read.cursor() as cur:
+        cur.execute("SELECT memory_version FROM projects WHERE id = %s;", (project_id,))
+        mv_row = cur.fetchone()
+        memory_version = mv_row[0] if mv_row else 1
+
+    # 2. Compute settings_hash and exact cache key
+    settings_hash = compute_settings_hash(only_axis=only_axis, current_dsl=current_dsl)
+    exact_key = compute_exact_key(
+        normalized_intent=idea,
+        project_id=project_id,
+        memory_version=memory_version,
+        settings_hash=settings_hash,
+    )
+
+    # 3. Check exact cache
+    cached = lookup_exact(conn_read, exact_key, project_id)
+
+    # 4. If exact miss, check semantic cache
+    emb = embed(idea)
+    if not cached:
+        cached = lookup_semantic(
+            conn_read,
+            project_id=project_id,
+            memory_version=memory_version,
+            settings_hash=settings_hash,
+            query_embedding=emb,
+        )
+
+    # 5. Handle cache hit
+    if cached:
+        new_state["result"] = cached
+        new_state["delivered"] = True
+        new_state["cached"] = True
+        new_state["next_node"] = "finalize"
+        return new_state, [], []
+
+    # 6. Cache miss: attempt to acquire single-flight leadership
+    owner_token = str(uuid.uuid4())
+    acquired = try_acquire_inflight(conn_read, exact_key, job["id"], owner_token, lease_seconds=30)
+    if acquired:
+        new_state["inflight_key"] = exact_key
+        new_state["owner_token"] = owner_token
+        new_state["memory_version"] = memory_version
+        new_state["settings_hash"] = settings_hash
+        new_state["query_embedding"] = emb
+        new_state["next_node"] = "retrieve"
+        return new_state, [], []
+    else:
+        # Follower: re-check cache once
+        cached_recheck = lookup_exact(conn_read, exact_key, project_id) or lookup_semantic(
+            conn_read, project_id, memory_version, settings_hash, emb
+        )
+        if cached_recheck:
+            new_state["result"] = cached_recheck
+            new_state["delivered"] = True
+            new_state["cached"] = True
+            new_state["next_node"] = "finalize"
+            return new_state, [], []
+
+        # Follower deferral: defer via run_after without holding worker slot
+        new_state["defer_run_after"] = True
+        new_state["next_node"] = "intent"
+        return new_state, [], []
 
 
 def retrieve_node(conn_read: Any, job: dict[str, Any], state: dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]], list[dict[str, Any]]]:
@@ -405,9 +474,27 @@ def repair_node(conn_read: Any, job: dict[str, Any], state: dict[str, Any]) -> t
 def finalize_node(conn_read: Any, job: dict[str, Any], state: dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]], list[dict[str, Any]]]:
     """Assemble final result, re-run gate (I5), and create axis/done events (I7)."""
     new_state = dict(state)
-    candidate = new_state.get("best_valid")
     events: list[dict[str, Any]] = []
 
+    # Cache hit path
+    if new_state.get("cached"):
+        result_data = new_state.get("result", {})
+        canonical_axes = ["subject", "emotion", "optics", "motion", "lighting", "style", "audio", "continuity"]
+        for axis_name in canonical_axes:
+            events.append({
+                "type": "axis",
+                "data": {"axis": axis_name, "value": result_data.get("axes", {}).get(axis_name, "")},
+            })
+        events.append({
+            "type": "done",
+            "data": {"status": "delivered", "quote_micro": job["quote_micro"], "cached": True},
+        })
+        new_state["delivered"] = True
+        new_state["result"] = result_data
+        new_state["next_node"] = None
+        return new_state, [], events
+
+    candidate = new_state.get("best_valid")
     delivered = False
     result_data: dict[str, Any] = {}
 
@@ -435,6 +522,19 @@ def finalize_node(conn_read: Any, job: dict[str, Any], state: dict[str, Any]) ->
                 "type": "done",
                 "data": {"status": "delivered", "quote_micro": job["quote_micro"]},
             })
+
+            # Publish safe result to cache if single-flight owner
+            if new_state.get("inflight_key") and new_state.get("owner_token"):
+                publish(
+                    conn_read,
+                    key=new_state["inflight_key"],
+                    project_id=job["project_id"],
+                    memory_version=new_state.get("memory_version", 1),
+                    settings_hash=new_state.get("settings_hash", ""),
+                    query_embedding=new_state.get("query_embedding", [0.0] * 64),
+                    result=result_data,
+                    owner_token=new_state["owner_token"],
+                )
         else:
             delivered = False
             result_data = {
@@ -446,6 +546,8 @@ def finalize_node(conn_read: Any, job: dict[str, Any], state: dict[str, Any]) ->
                 "type": "done",
                 "data": {"status": "blocked", "reason_codes": result_data["reason_codes"]},
             })
+            if new_state.get("inflight_key") and new_state.get("owner_token"):
+                release_inflight(conn_read, new_state["inflight_key"], new_state["owner_token"])
     else:
         delivered = False
         outcome_status = "blocked" if new_state.get("outcome") == "blocked" else "failed"
@@ -459,6 +561,8 @@ def finalize_node(conn_read: Any, job: dict[str, Any], state: dict[str, Any]) ->
             "type": "done",
             "data": {"status": outcome_status, "reason_codes": result_data["reason_codes"]},
         })
+        if new_state.get("inflight_key") and new_state.get("owner_token"):
+            release_inflight(conn_read, new_state["inflight_key"], new_state["owner_token"])
 
     new_state["delivered"] = delivered
     new_state["result"] = result_data

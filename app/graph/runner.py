@@ -198,6 +198,21 @@ def run_job(
                             (json.dumps(final_result), final_status, job_id),
                         )
 
+                    # If follower deferred, release lease and set run_after without holding worker slot
+                    if new_state.get("defer_run_after"):
+                        cur.execute(
+                            """
+                            UPDATE jobs
+                            SET run_after = NOW() + INTERVAL '200 milliseconds',
+                                lease_owner = NULL,
+                                lease_expires_at = NOW(),
+                                status = 'pending'
+                            WHERE id = %s AND lease_owner = %s;
+                            """,
+                            (job_id, worker_id),
+                        )
+                        return
+
                     # Fenced lease update: zero rows updated raises LeaseLost
                     cur.execute(
                         """
