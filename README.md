@@ -62,5 +62,19 @@ make chaos ACTION=t11
 ## Disclosure and limitations
 
 The environment scaffold (Phase 0) predates the timed window; see git tag [`clock-start`](commit 69e9d5a).
+## Disclosures and limitations
 
-`IMPLEMENTATION_STATUS.md` currently lists no failing/known issues and no cuts or deferrals. It records `TIME_SCALE=0.001` for tests, among other assumptions, and names Phase 10 as the next step. In the current tree, `ui/index.html` is only a plain title, so the planned editor and streaming interaction are not implemented. The combined chaos runner is absent; only the T7 PowerShell script is present. The mock's injection-obedience mode is intentionally adversarial and does not represent model behavior. See [ARCHITECTURE.md](ARCHITECTURE.md) for design limits and billing behavior.
+This is an eight-hour technical assessment prototype. It demonstrates the requested pipeline and failure-handling patterns; it is not production-ready infrastructure.
+
+- **Mock models:** The project uses deterministic mock LLMs and a mock embedder. Evaluation results measure this implementation against those mocks; they do not establish the quality, cost, latency, or safety of a real model provider.
+- **Injection testing:** The mock can be configured to follow poisoned instructions so the application’s defenses can be tested. A 100% resistance result on this benchmark does not prove immunity to real-world or novel prompt-injection attacks.
+- **Benchmark scope:** `EVAL_RESULTS.md` reports 120 deterministic, generated cases. The results are specific to those cases and seeds, not a broad production benchmark. The semantic-cache threshold was calibrated on a small labelled set of paraphrase and different-intent pairs.
+- **Continuity grounding:** The checker verifies that cited IDs exist in the retrieved memory for the current project. It does not verify that the cited record semantically supports the claim’s wording.
+- **Cost comparison:** Baseline cost is raw mock-provider cost; system cost is the billed quote. These use different bases and are not a like-for-like cost comparison.
+- **Latency:** Evaluation latency uses simulated provider delays scaled by `TIME_SCALE=0.01`; it is not real-provider or production latency.
+- **Authentication:** `X-User-Id` is a demo identity mechanism, not production authentication or authorization infrastructure.
+- **Feedback:** Accept/reject feedback is stored in browser `localStorage`; it is not persisted server-side.
+- **Verification:** The latest reported full test run passed 109 tests in 79.69 seconds, with one Starlette deprecation warning. The T7, T8, and T11 chaos scenarios were verified. Other individual service stop/start/restore scenarios were not all run manually.
+- **Observability and deployment:** Detailed `trace_id` and per-node timing log fields were deferred. Optional Phase 12 improvements, including hosted or multi-region deployment, were not implemented.
+
+The evaluation report records a 0.0% pre-grounding hallucinated-continuity rate for its benchmark run. This is a result for that run and should not be interpreted as evidence that raw model output cannot contain ungrounded claims.
